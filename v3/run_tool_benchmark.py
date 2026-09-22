@@ -129,8 +129,9 @@ def load_asr_model():
     """Load NeMo ASR model."""
     print("🔊 Loading ASR model...")
     import nemo.collections.asr as nemo_asr
+    import torch
     model = nemo_asr.models.ASRModel.from_pretrained(model_name=ASR_MODEL_NAME)
-    if hasattr(model, 'cuda'):
+    if torch.cuda.is_available():
         model = model.cuda()
     print("✅ ASR model loaded")
     return model

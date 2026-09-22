@@ -20,7 +20,7 @@ RESULTS_DIR="fdb_v3_data_released"
 SKIP_FLAG="${1:-}"
 
 # Edit this list to include the providers you have run inference for:
-PROVIDERS=("gpt_realtime" "gemini2_5" "grok" "gemini3_1" "ultravox" "cascaded")
+PROVIDERS=("gpt_realtime" "gemini2_5" "grok" "gemini3_1" "ultravox" "eesi" "cascaded")
 
 echo "============================================"
 echo "Multi-Step Tool Benchmark: All Evaluations"

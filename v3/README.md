@@ -94,9 +94,19 @@ OPENAI_API_KEY=sk-...          # GPT Realtime / cascaded agent / evaluation LLM 
 XAI_API_KEY=...                # Grok
 GOOGLE_API_KEY=...             # Gemini
 ULTRAVOX_API_KEY=...           # Ultravox
+EESI_API_KEY=sk-eesi-...       # EESI Nur (nur-live-v1)
+EESI_BASE_URL=https://api.dev.eesi.ai/v1   # optional; defaults to https://api.eesi.ai/v1
 ```
 
-> **Note:** A [LiveKit Cloud](https://cloud.livekit.io) account (free tier available) is required to run inference. The evaluation scripts (Step 3 below) do **not** require LiveKit.
+> **Note:** Inference needs a LiveKit server: either [LiveKit Cloud](https://cloud.livekit.io) (free tier available) or a local one. The evaluation scripts (Step 3 below) do **not** require LiveKit.
+
+**Local LiveKit server (no Cloud account).** `brew install livekit` (or grab a release binary), run `livekit-server --dev`, and point `.env.local` at it with the dev-mode credentials:
+
+```bash
+LIVEKIT_URL=ws://localhost:7880
+LIVEKIT_API_KEY=devkey
+LIVEKIT_API_SECRET=secret
+```
 
 ## Running Inference
 
@@ -106,7 +116,7 @@ Inference streams each audio sample through a LiveKit room where a voice agent i
 
 In a **separate terminal**, start the agent server. Choose one of the following:
 
-**Option A: Native Realtime Model Agent** (GPT Realtime, Gemini, Grok, Ultravox)
+**Option A: Native Realtime Model Agent** (GPT Realtime, Gemini, Grok, Ultravox, EESI Nur)
 
 ```bash
 cd v3
@@ -119,7 +129,10 @@ LK_PROVIDER=gpt_realtime python lk_agent_tool.py start
 # LK_PROVIDER=gemini3_1 python lk_agent_tool.py start
 # LK_PROVIDER=grok python lk_agent_tool.py start
 # LK_PROVIDER=ultravox python lk_agent_tool.py start
+# LK_PROVIDER=eesi python lk_agent_tool.py start
 ```
+
+The `eesi` provider needs `pip install -e <agents>/livekit-plugins/livekit-plugins-eesi` (from [eesi-ai/agents](https://github.com/eesi-ai/agents)).
 
 **Option B: Cascaded Agent** (Silero VAD + OpenAI Whisper STT + gpt-4o LLM + OpenAI TTS)
 
@@ -159,6 +172,7 @@ This will process all 100 audio samples and save `result_{provider}.json` files 
 | Gemini 3.1 | `gemini3_1` | `lk_agent_tool.py` | gemini-3.1-flash-live |
 | Grok | `grok` | `lk_agent_tool.py` | Grok Voice Agent |
 | Ultravox | `ultravox` | `lk_agent_tool.py` | Ultravox Realtime |
+| EESI Nur | `eesi` | `lk_agent_tool.py` | nur-live-v1 |
 | Cascaded (STT+LLM+TTS) | `cascaded` | `cascaded_agent.py` | Whisper + gpt-4o + OpenAI TTS |
 
 ## Running Evaluation
