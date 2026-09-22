@@ -134,7 +134,7 @@ PROVIDER = os.getenv("LK_PROVIDER", "grok")
 #   "gemini2_5"    – Google Gemini 2.5 Live API
 #   "gemini3_1"    – Google Gemini 3.1 Live API
 #   "ultravox"     – Ultravox Realtime
-#   "eesi"         – EESI Nur realtime (nur-realtime-v1)
+#   "eesi"         – EESI Nur realtime (nur-live-v1)
 
 
 def get_realtime_model():
@@ -154,7 +154,7 @@ def get_realtime_model():
         from livekit.plugins import eesi
 
         return eesi.realtime.RealtimeModel(
-            model=os.getenv("EESI_MODEL", "nur-realtime-v1"),
+            model=os.getenv("EESI_MODEL", "nur-live-v1"),
             voice=os.getenv("EESI_VOICE", "alloy"),
         )
 
