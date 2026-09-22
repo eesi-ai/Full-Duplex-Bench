@@ -3,7 +3,7 @@
 LiveKit Voice Agent with swappable realtime model providers.
 
 Supports every realtime model plugin that LiveKit provides:
-  grok, gpt_realtime, azure_openai, gemini2_5, gemini3_1, ultravox
+  grok, gpt_realtime, azure_openai, gemini2_5, gemini3_1, ultravox, eesi
 
 Usage:
     # Development mode (connects to LiveKit Cloud, auto-dispatches on room join):
@@ -18,6 +18,7 @@ Usage:
 Requirements:
     pip install "livekit-agents[xai,openai,google]~=1.3" \\
                 "livekit-plugins-ultravox" \\
+                "livekit-plugins-eesi" \\
                 python-dotenv
 
 Environment variables (in .env.local):
@@ -29,6 +30,8 @@ Environment variables (in .env.local):
     AZURE_OPENAI_DEPLOYMENT       (for Azure OpenAI)
     GOOGLE_API_KEY                (for Gemini)
     ULTRAVOX_API_KEY              (for Ultravox)
+    EESI_API_KEY                  (for Nur / EESI)
+    EESI_BASE_URL                 (optional; default https://api.eesi.ai/v1)
 """
 
 import os
@@ -131,6 +134,7 @@ PROVIDER = os.getenv("LK_PROVIDER", "grok")
 #   "gemini2_5"    – Google Gemini 2.5 Live API
 #   "gemini3_1"    – Google Gemini 3.1 Live API
 #   "ultravox"     – Ultravox Realtime
+#   "eesi"         – EESI Nur realtime (nur-realtime-v1)
 
 
 def get_realtime_model():
@@ -143,6 +147,15 @@ def get_realtime_model():
 
         return xai.realtime.RealtimeModel(
             voice=os.getenv("XAI_VOICE", "Ara"),
+        )
+
+    # ── EESI Nur realtime ─────────────────────────────────────────────
+    elif provider == "eesi":
+        from livekit.plugins import eesi
+
+        return eesi.realtime.RealtimeModel(
+            model=os.getenv("EESI_MODEL", "nur-realtime-v1"),
+            voice=os.getenv("EESI_VOICE", "alloy"),
         )
 
     # ── OpenAI Realtime API ──────────────────────────────────────────
@@ -193,7 +206,9 @@ def get_realtime_model():
         )
 
     else:
-        supported = "grok, gpt_realtime, azure_openai, gemini2_5, gemini3_1, ultravox"
+        supported = (
+            "grok, gpt_realtime, azure_openai, gemini2_5, gemini3_1, ultravox, eesi"
+        )
         raise ValueError(
             f"Unknown provider '{provider}'. "
             f"Set LK_PROVIDER to one of: {supported}"
