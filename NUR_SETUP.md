@@ -5,8 +5,9 @@ two-agent WebRTC orchestrator, and the v3 LiveKit tool benchmark. Use the dev
 EESI API key and `EESI_BASE_URL=https://api.dev.eesi.ai/v1` for all three.
 The source label is telemetry; the public Nur session uses its normal floor
 policy. The data and local credentials are ignored by Git.
-The two-case dev diagnostic is recorded in `NUR_TWO_TASK_RESULTS.md`; the
-stratified ten-case sample and input hashes are in `NUR_TEN_TASK_MANIFEST.json`.
+The two-case dev diagnostic is recorded in `NUR_TWO_TASK_RESULTS.md`. The
+stratified ten-case sample, input hashes, and results are in
+`NUR_TEN_TASK_MANIFEST.json` and `NUR_TEN_TASK_RESULTS.md`.
 
 ## Setup and released data
 
@@ -116,3 +117,19 @@ Remove `--limit` for all 100 examples. Then score the saved results:
 Add `--use-llm` for the paper's LLM judge. Without it, argument matching is
 exact and response quality is not judged. Preserve the submodule revisions,
 archive hashes, dev runtime revision, and session capabilities with any score.
+To use Vertex instead of the authors' OpenAI judge for v3 semantic argument
+matching and response quality, set `FDB_JUDGE_PROVIDER=vertex`,
+`GOOGLE_CLOUD_PROJECT`, and `GOOGLE_CLOUD_LOCATION`, then add `--use-llm` to
+both scorer commands. Record both exact and semantic reports when comparing.
+
+## Bounded dev concurrency
+
+The current dev Nur pod has a session ceiling of eight. For bulk capture,
+start with four lanes, increase to at most six while watching `/metrics`
+(`s2s_pool_in_use`, `s2s_audio_in_dropped_total`,
+`s2s_responses_failed_total`, and `s2s_errors_total`), and leave two units
+for ordinary dev traffic. Keep CPU Parakeet transcription away from the local
+LiveKit worker: when both ran on the same eight-core host, the worker declined
+new rooms. Treat rooms without an agent, silent capture, pod rollouts, and
+backend 502s as failed attempts to retry after health is restored. The v3
+streamer now exits nonzero if no agent joins within 20 seconds.

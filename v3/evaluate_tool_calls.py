@@ -61,12 +61,16 @@ def _strip_json_fences(text: str) -> str:
 
 
 def _get_openai_client():
-    """Lazy-init OpenAI client."""
+    """Lazy-init the configured semantic judge client."""
     global _openai_client
     if _openai_client is None:
         try:
-            from openai import OpenAI
-            _openai_client = OpenAI()
+            if os.getenv("FDB_JUDGE_PROVIDER") == "vertex":
+                from vertex_judge import VertexJudge
+                _openai_client = VertexJudge()
+            else:
+                from openai import OpenAI
+                _openai_client = OpenAI()
         except Exception as e:
             print(f"⚠️  OpenAI client not available: {e}")
             _openai_client = None
