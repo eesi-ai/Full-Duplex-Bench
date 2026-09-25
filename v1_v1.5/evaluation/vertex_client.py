@@ -1,0 +1,39 @@
+"""Small OpenAI-shaped Vertex client for the benchmark's existing judges."""
+
+import os
+import subprocess
+from types import SimpleNamespace
+
+import requests
+
+
+class VertexJudge:
+    def __init__(self, model="gemini-2.5-flash"):
+        self.model = model
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
+        self.models = SimpleNamespace(list=lambda: [model])
+
+    def create(self, *, messages, **_kwargs):
+        project = os.environ["GOOGLE_CLOUD_PROJECT"]
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        token = subprocess.check_output(
+            ["gcloud", "auth", "print-access-token"], text=True
+        ).strip()
+        url = (
+            f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}"
+            f"/locations/{location}/publishers/google/models/{self.model}:generateContent"
+        )
+        prompt = "\n\n".join(f"{m['role']}: {m['content']}" for m in messages)
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 8192},
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        parts = response.json()["candidates"][0]["content"]["parts"]
+        text = "".join(part.get("text", "") for part in parts)
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])

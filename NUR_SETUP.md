@@ -5,7 +5,8 @@ two-agent WebRTC orchestrator, and the v3 LiveKit tool benchmark. Use the dev
 EESI API key and `EESI_BASE_URL=https://api.dev.eesi.ai/v1` for all three.
 The source label is telemetry; the public Nur session uses its normal floor
 policy. The data and local credentials are ignored by Git.
-The two-case dev diagnostic is recorded in `NUR_TWO_TASK_RESULTS.md`.
+The two-case dev diagnostic is recorded in `NUR_TWO_TASK_RESULTS.md`; the
+stratified ten-case sample and input hashes are in `NUR_TEN_TASK_MANIFEST.json`.
 
 ## Setup and released data
 
@@ -58,9 +59,15 @@ already present. `eesi_inference.js --tail-seconds 12` controls the default
 post-input observation window; keep it fixed across runs.
 
 Run `get_transcript/asr.py` for each subset with `--root_dir` pointing to that
-subset directory. For v1.5, also run it with `--audio_name clean_input.wav`
-and `--audio_name clean_output.wav`. Then use `evaluation/evaluate.py` with the
-task and subset directory described in `evaluation/README.md`.
+subset directory. For v1.5 behavior scoring, run four passes with
+`--audio_name` set to `input.wav`, `output.wav`, `clean_input.wav`, and
+`clean_output.wav`. For v1 interruption scoring, use `--task user_interruption`
+so timestamps are relative to the interruption. Then use
+`evaluation/evaluate.py` with the task and subset directory described in
+`evaluation/README.md`. For the subjective `behavior` and `user_interruption`
+judges, `--judge vertex` uses Vertex Gemini 2.5 Flash via Google Cloud ADC;
+set `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`. The default remains
+the authors' OpenAI judge, so record the provider when comparing scores.
 
 ## v2
 

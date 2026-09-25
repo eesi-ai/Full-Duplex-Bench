@@ -35,7 +35,16 @@ def main():
         help="Root directory containing data for evaluation.",
     )
 
+    parser.add_argument("--judge", choices=["openai", "vertex"], default="openai")
+
     args = parser.parse_args()
+
+    if args.judge == "vertex":
+        from vertex_client import VertexJudge
+
+        judge_client = VertexJudge()
+    else:
+        judge_client = None
 
     if args.task == "backchannel":
         from eval_backchannel import eval_backchannel
@@ -52,7 +61,7 @@ def main():
     elif args.task == "user_interruption":
         from eval_user_interruption import eval_user_interruption
 
-        client = OpenAI(
+        client = judge_client or OpenAI(
             # organization=organization,
             api_key=api_key,
         )
@@ -92,7 +101,7 @@ def main():
     elif args.task == "behavior":
         from eval_behavior import eval_behavior_all
 
-        client = OpenAI(
+        client = judge_client or OpenAI(
             # organization=organization,
             api_key=api_key,
         )
