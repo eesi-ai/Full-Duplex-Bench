@@ -1,0 +1,53 @@
+{
+  "source_urls": {
+    "v1_v1_5": "https://drive.google.com/drive/folders/1DtoxMVO9_Y_nDs2peZtx3pw-U2qYgpd3",
+    "v3": "https://drive.google.com/uc?id=1SO_4MTazWQ_jvCx0dtmpQ-t40bdd07yz"
+  },
+  "archives": {
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.0/candor_pause_handling.zip": {
+      "sha256": "7e994d4792a668fee89480d6cd06c606ddce157041c2b1b60ed2e63bf2628969",
+      "bytes": 67089249
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.0/candor_turn_taking.zip": {
+      "sha256": "a0764ebb98584d07876a194167be48a4f9aa7d309f454c822fe63e4599207ee2",
+      "bytes": 37850555
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.0/icc_backchannel.zip": {
+      "sha256": "e4ce7903fbc18c0abc49a262d07df2fbd2fd17dc8bf7ad39f1f591fcd6d8b26f",
+      "bytes": 112509001
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.0/synthetic_pause_handling.zip": {
+      "sha256": "593859a99fe27455caeb6e5de0cce8d392cf48aa4a62f9c05e66d67ab8d34797",
+      "bytes": 107106287
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.0/synthetic_user_interruption.zip": {
+      "sha256": "279d258e16c5b09a4ed1abd19ecf0c992935968a55d732d151218b82c35480de",
+      "bytes": 152934381
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.5/background_speech.zip": {
+      "sha256": "4dd2c23b3e03fe01ae36e2572bff1bc2679469f419741fc259f99fbc32d0a1d1",
+      "bytes": 24649756
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.5/talking_to_other.zip": {
+      "sha256": "2029a0687190a3bc9a9ec65ec620f484d831cb9dcdacb025a46e16a39cf62bc1",
+      "bytes": 28699879
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.5/user_backchannel.zip": {
+      "sha256": "abe3f1765b542e1b3c47b90f2d18a24d5203e392a78f2b7c90474fac06a69bb9",
+      "bytes": 23179469
+    },
+    "v1_v1.5/dataset/Full-Duplex-Bench-Data/v1.5/user_interruption.zip": {
+      "sha256": "0560418f1d02e9d73a6136b24efac803daa63a2056d3f0d539a901fe9a70912e",
+      "bytes": 151353771
+    },
+    "v3/fdb_v3_data_released.zip": {
+      "sha256": "37545bd896f81718136598cf5be25d42ea9aa22efcd91f58370938d05d7d672f",
+      "bytes": 736136419
+    }
+  },
+  "sample_counts": {
+    "v1.0": 727,
+    "v1.5": 498,
+    "v3": 100
+  }
+}

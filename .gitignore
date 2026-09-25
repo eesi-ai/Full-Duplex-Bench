@@ -49,4 +49,8 @@ Thumbs.db
 
 # V2 Architecture
 v2/node_modules/
+v1_v1.5/model_inference/gpt-realtime/node_modules/
 v2/outputs/
+v1_v1.5/dataset/Full-Duplex-Bench-Data/
+v3/fdb_v3_data_released/
+v3/fdb_v3_data_released.zip

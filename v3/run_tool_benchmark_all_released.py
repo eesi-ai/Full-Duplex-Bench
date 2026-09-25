@@ -98,6 +98,7 @@ def main():
                         help="Model provider (gpt_realtime, grok, gemini2_5, gemini3_1, ultravox, cascaded)")
     parser.add_argument("--force", action="store_true", help="Overwrite existing results")
     parser.add_argument("--asr-only", action="store_true", help="Skip inference, only run ASR")
+    parser.add_argument("--limit", type=int, default=0, help="Run at most this many examples (0 = all)")
     args = parser.parse_args()
 
     root_dir = Path(args.root_dir)
@@ -123,6 +124,8 @@ def main():
 
     # 3. Discover Inputs (also picks up per-folder metadata.json)
     inputs = discover_inputs_released(root_dir)
+    if args.limit > 0:
+        inputs = inputs[:args.limit]
     if _PER_FOLDER_DATA:
         data = {**data, **_PER_FOLDER_DATA}
         print(f"📋 Merged {len(_PER_FOLDER_DATA)} per-folder metadata.json entries → {len(data)} total")

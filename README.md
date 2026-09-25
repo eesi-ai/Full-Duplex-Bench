@@ -16,6 +16,8 @@
 </div>
 
 Welcome to **Full-Duplex-Bench**, with v1.0, v1.5, v2.0, and v3.0, a comprehensive framework designed to evaluate the conversational and turn-taking capabilities of spoken language models.
+
+For EESI Nur Live against the released v1/v1.5, v2, and v3 suites, see [NUR_SETUP.md](./NUR_SETUP.md).
 ## News 🔥
 - **(2026/5/20) Full-Duplex-Bench v3 Code & Data Release**: The v3 codebase and benchmark data are now publicly available! Check out the [`v3/`](./v3) folder for the full inference and evaluation pipeline. Download the benchmark data [here](https://drive.google.com/file/d/1SO_4MTazWQ_jvCx0dtmpQ-t40bdd07yz/view?usp=sharing).
 - **(2026/5/10) Codebase Update for New Models and Bug Fixes**: Add Gemini 3.1 Flash Live Preview to v1/v1.5, and update the codebase.

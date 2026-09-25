@@ -76,6 +76,7 @@ def _load_silero(force_reload: bool = False):
     _silero_model, _silero_utils = torch.hub.load(
         repo_or_dir="snakers4/silero-vad",
         model="silero_vad",
+        trust_repo=True,
         force_reload=force_reload,
         onnx=False,
     )
@@ -307,7 +308,10 @@ def _run_utmosv2(wav: torch.Tensor, sr: int) -> float:
     _load_models()
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmpf:
         torchaudio.save(tmpf.name, wav, sr)
-        mos = _utmosv2_model.predict(input_path=tmpf.name)
+        mos = _utmosv2_model.predict(
+            input_path=tmpf.name,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+        )
     try:
         os.unlink(tmpf.name)
     except OSError:

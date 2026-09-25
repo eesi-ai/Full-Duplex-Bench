@@ -9,6 +9,7 @@ silero_vad
 soundfile
 torch
 torchaudio
+torchcodec
 tqdm
 transformers
 pyyaml
