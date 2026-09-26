@@ -149,17 +149,92 @@ infrastructure failures. The final ten records have no infrastructure-error
 terminations. The main deployment did not change the speech image, but its
 pod restart added wall-clock time to this run.
 
-## Interpretation and next replay
+## Final floor and delegation revision
 
-The fixed control loop corrected one concrete repeated-answer failure and
-raised the v2 rubric and v3 spoken quality in these samples. It did not
-improve exact or semantic v3 tool pass, and its mean v1 turn-taking,
-interruption, and v3 response latencies rose. Background speaker focus and
-short-acknowledgment handling remain weak. No result here establishes
-browser playout, AEC, or performance across all released cases.
+The follow-up deployed as runtime commit
+`61d2620f0d5abdac7d6846f16df5c5fe0edf0c52`, speech image
+`sha256:5374b53c2ae1b88ec03e582ad7f21bc004ae58293d47f290b0cf6de6246cd0f3`.
+It improved Gemma's brief-overlap and tool-delegation instructions and moved
+the emergency voice cut from 0.7 to 1.25 seconds, removing the three-word
+hard cut. The same pinned inputs were replayed. Raw local outputs are under
+`/tmp/nur-final-61d262/`. Two silent v3 captures during an unrelated pod
+rollout were preserved in `v3-outage/` and rerun after the same speech image
+returned to Ready.
 
-The next deployed revision changes brief-overlap guidance, emergency
-barge-in behavior, and delegation for offered tool-backed facts/actions.
-Replay the same audio backchannel, correction, and tool probes after dev
-reports that revision; compare actual trace actions and output audio before
-attributing any further benchmark change to it.
+In a public-edge WebRTC call, the same caller backchannel said “Right,
+yeah? Yeah.” while Nur's output was still playing. The final revision kept
+playing with zero audio-clear events; the earlier one cut the reply about
+742 ms after caller speech began. An injected genuine new question still cut
+playback, with the first clear about 1.35 seconds after injection. Both
+calls decoded audio without receiver errors. The backchannel probe tested
+preserving Nur's floor during a *caller* acknowledgment; it did not elicit
+a `BACKCHANNEL` action from Nur.
+
+| v1.0 metric | First control loop | Final revision |
+| --- | ---: | ---: |
+| Candor / synthetic pause full turns | 2/2 / 2/2 | 2/2 / 2/2 |
+| Candor turn taking: full turns, mean latency | 2/2, 3.22 s | 2/2, 2.86 s |
+| ICC backchannel: full turns, JSD, frequency | 2/2, 0.7522, 0.0365 Hz | 2/2, 0.8875, 0.0092 Hz |
+| Synthetic interruption: relevance, mean latency | 5/5, 4.40 s | 5/5, 2.84 s |
+
+Interruption latency improved; ICC backchannel generation worsened. The
+WebRTC probe and ICC score measure different floor behavior.
+
+| v1.5 category | First control-loop labels | Final labels |
+| --- | --- | --- |
+| Background speech (2) | 1 respond, 1 unknown | 1 respond, 1 uncertain |
+| Talking to another person (2) | 1 respond, 1 unknown | 1 respond, 1 unknown |
+| User backchannel (3) | 3 resume | 2 resume, 1 unknown |
+| User interruption (3) | 1 respond, 1 uncertain, 1 unknown | 2 respond, 1 unknown |
+
+These are Gemini 2.5 Flash Vertex content-relation labels, not binary
+pass/fail grades. Background speaker focus remains weak.
+
+| v2 metric | First control loop | Final revision |
+| --- | ---: | ---: |
+| Daily ordering scores | 3, 2, 2 | 3, 1, 2 |
+| Correction scores | 5, 1, 2 | 1, 2, 5 |
+| Entity tracking scores | 4, 3 | 1, 3 |
+| Physical health safety scores | 5, 5 | 4, 1 |
+| **All ten** | **32/50, mean 3.20** | **23/50, mean 2.30** |
+| Turn-taking fluency, judged events | 3.60/5, 50 | 3.59/5, 98 |
+| Instruction following, judged events | 2.84/5, 50 | 2.45/5, 98 |
+
+Both ASR bundles use the same 120-second window and staged prompts. The
+final run produced more judged response events, especially in ordering and
+safety. One safety dialogue contained unclear, partly German-sounding
+speech and repeated clarification; a sushi order repeated and altered
+items. The examiner and judge are model-based, so ten cases cannot isolate
+which prompt change caused the regression. The v2 adapter offers no order
+tools.
+
+| v3 metric | First control loop | Final revision |
+| --- | ---: | ---: |
+| Spoken response / offered-tool selection | 10/10 / 9/10 | 10/10 / 10/10 |
+| Exact argument accuracy / pass | 6/10 / 6/10 | 7/10 / 7/10 |
+| Semantic argument accuracy / pass | 8/10 / 8/10 | 9/10 / 9/10 |
+| Vertex judged spoken quality | 6/10 | 8/10 |
+| Mean perceived response latency, spoken cases | 6.34 s | 7.43 s |
+
+The final revision called the card-benefits tool missed in the prior
+replay. The remaining semantic argument failure is a passport number whose
+input ASR disagrees with the benchmark reference. Two final replies were
+judged poor quality, including a garbled currency answer. The scorer's
+7.43-second mean uses ten healthy spoken cases; the runner's preliminary
+5.54-second mean included two rollout-time silent captures and is invalid.
+
+## Interpretation
+
+The first control-loop deployment corrected one concrete repeated-answer
+failure and improved the v2 rubric. The final floor/delegation revision
+changed the tradeoff again. These are small, stochastic diagnostic samples;
+no result here establishes browser playout, echo cancellation, or
+performance across all released cases.
+
+The final revision preserved one caller acknowledgment during real playback
+and improved v3 tool grounding. It regressed on the sampled v2 task rubric
+and ICC backchannel frequency while making v3 replies slower. The next
+tuning cycle should focus on short acknowledgments while the caller has the
+floor, speaker focus under background speech, language drift, and avoiding
+repeated questions. Use paired audio and Activity traces for those changes;
+aggregate scores alone do not identify their cause.
