@@ -30,6 +30,7 @@ import argparse
 import json
 import os
 import random
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -250,6 +251,7 @@ def generate_with_gemini(
     temperature: float = 0.2,
     max_retries: int = 5,
 ) -> Dict[str, Any]:
+    provider = os.getenv("GEMINI_PROVIDER", "api_key")
     base = "https://generativelanguage.googleapis.com"
     # support v1beta for preview models
     # if api_version not in ("v1", "v1beta"):
@@ -259,9 +261,21 @@ def generate_with_gemini(
         "Content-Type": "application/json",
         "x-goog-api-key": api_key,
     }
+    if provider == "vertex":
+        project = os.getenv("GOOGLE_CLOUD_PROJECT") or subprocess.check_output(
+            ["gcloud", "config", "get-value", "project"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        if not project or not location:
+            raise RuntimeError("Vertex requires GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION")
+        token = subprocess.check_output(["gcloud", "auth", "print-access-token"], text=True).strip()
+        url = (f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}"
+               f"/locations/{location}/publishers/google/models/{model}:generateContent")
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     payload: Dict[str, Any] = {
         "contents": [
             {
+                "role": "user",
                 "parts": [{"text": prompt_text}],
             }
         ],
@@ -270,6 +284,8 @@ def generate_with_gemini(
             "temperature": temperature,
         },
     }
+    if provider == "vertex":
+        payload["generationConfig"]["responseMimeType"] = "application/json"
 
     attempt = 0
     while True:
@@ -410,7 +426,7 @@ def try_parse_json_from_text(text: str) -> Optional[Dict[str, Any]]:
 
 def main(argv: Optional[List[str]] = None) -> int:
     # Default model from environment variable or fallback
-    default_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-09-2025")
+    default_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     
     parser = argparse.ArgumentParser(description="Evaluate a single item with Gemini LLM-as-a-judge")
     parser.add_argument("--subset", required=True, help="One of: Daily, Correction, EntityTracking, Safety")
@@ -474,7 +490,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     api_key = args.api_key or os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    if not api_key and os.getenv("GEMINI_PROVIDER") != "vertex":
         raise EnvironmentError("API key not provided. Use --api-key or set GEMINI_API_KEY env var.")
 
     response_json = generate_with_gemini(
@@ -512,5 +528,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

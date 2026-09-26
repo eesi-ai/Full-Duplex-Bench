@@ -259,9 +259,11 @@ def main():
     asr_model = None
     if not args.skip_asr:
         print("Loading ASR model...")
+        import torch
+
         asr_model = nemo_asr.models.ASRModel.from_pretrained(
             model_name="nvidia/parakeet-tdt-0.6b-v2"
-        ).cuda()
+        ).to("cuda" if torch.cuda.is_available() else "cpu")
         print("ASR model loaded")
     
     # Process each audio pair
@@ -312,4 +314,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

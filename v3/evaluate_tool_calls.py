@@ -61,12 +61,16 @@ def _strip_json_fences(text: str) -> str:
 
 
 def _get_openai_client():
-    """Lazy-init OpenAI client."""
+    """Lazy-init the configured semantic judge client."""
     global _openai_client
     if _openai_client is None:
         try:
-            from openai import OpenAI
-            _openai_client = OpenAI()
+            if os.getenv("FDB_JUDGE_PROVIDER") == "vertex":
+                from vertex_judge import VertexJudge
+                _openai_client = VertexJudge()
+            else:
+                from openai import OpenAI
+                _openai_client = OpenAI()
         except Exception as e:
             print(f"⚠️  OpenAI client not available: {e}")
             _openai_client = None
@@ -113,7 +117,7 @@ Respond with ONLY a JSON object:
         return exact_match_args(expected_args, actual_args)
 
 
-def llm_judge_response(expected_intent: str, actual_transcript: str) -> Tuple[float, str]:
+def llm_judge_response(expected_intent: str, actual_transcript: str) -> Tuple[Optional[float], str]:
     """
     Use gpt-4o to judge if the agent's spoken response matches the expected intent.
     Returns (score: float 0.0 or 1.0, explanation: str).
@@ -153,7 +157,8 @@ Respond with ONLY a JSON object:
         is_correct = result.get("correct", False)
         return (1.0 if is_correct else 0.0), result.get("explanation", "")
     except Exception as e:
-        return 0.0, f"LLM parsing error: {str(e)}"
+        # A malformed judge response is missing evidence, not a model error.
+        return None, f"LLM parsing error: {str(e)}"
 
 
 def exact_match_args(expected: dict, actual: dict) -> Tuple[bool, str]:

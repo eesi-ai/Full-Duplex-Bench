@@ -34,8 +34,6 @@ while true; do
 done
 SIGNAL_PORT="${SIGNAL_PORT:-$RANDOM_PORT}"
 SIGNAL_URL="ws://localhost:${SIGNAL_PORT}/signal"
-TOKEN_SERVER_PORT="${TOKEN_SERVER_PORT:-3002}"
-TOKEN_SERVER_URL="${OPENAI_TOKEN_SERVER:-http://localhost:${TOKEN_SERVER_PORT}}"
 RECORD_DIR="${RECORD_DIR:-outputs}"
 
 # Model configuration
@@ -59,7 +57,6 @@ EXAMINER_MODE="${EXAMINER_MODE:-slow}"
 ORCH_JS="orchestrator.js"
 ADAPTER_A_JS="adapters/gptRealtime_adapter.js"
 ADAPTER_B_JS="adapters/gptRealtime_adapter.js"
-TOKEN_SERVER_JS="adapters/openai_token_server.js"
 
 # ── CLI overrides (prompts/voices/ports) ────────────────────────────────────────────────
 print_usage() {
@@ -82,7 +79,6 @@ print_usage() {
   echo "  --voice-b NAME             Set voice for Role B (default: $VOICE_B)"
   echo "  --examiner-mode MODE       GPT examiner VAD mode: slow (default) or fast"
   echo "  --signal-port N            Orchestrator signaling port (default: $SIGNAL_PORT)"
-  echo "  --token-server-port N      OpenAI token server port (default: $TOKEN_SERVER_PORT)"
   echo "  --record-dir PATH          Output directory for recordings (default: $RECORD_DIR)"
   echo "  -h, --help                 Show this help"
 }
@@ -137,9 +133,6 @@ while [[ $# -gt 0 ]]; do
     --signal-port)
       if [[ -z "${2:-}" ]]; then echo "Missing value for --signal-port"; exit 2; fi
       SIGNAL_PORT="$2"; SIGNAL_URL="ws://localhost:${SIGNAL_PORT}/signal"; shift 2 ;;
-    --token-server-port)
-      if [[ -z "${2:-}" ]]; then echo "Missing value for --token-server-port"; exit 2; fi
-      TOKEN_SERVER_PORT="$2"; TOKEN_SERVER_URL="http://localhost:${TOKEN_SERVER_PORT}"; shift 2 ;;
     --record-dir)
       if [[ -z "${2:-}" ]]; then echo "Missing path for --record-dir"; exit 2; fi
       RECORD_DIR="$2"; shift 2 ;;
@@ -156,6 +149,7 @@ done
 
 # Export recording dir for child processes (orchestrator, adapters)
 export RECORD_DIR
+export SIGNAL_PORT
 
 # Prepare Role A prefill (USER role) and keep system prompt separate
 PREFILL_A=""
@@ -167,7 +161,7 @@ PREFILL_A=""
 
 # ── Guardrails ──────────────────────────────────────────────────────────────────────────────
 if [ -z "${OPENAI_API_KEY:-}" ]; then
-  echo "[Launcher] ERROR: OPENAI_API_KEY is not set (for GPT‑4o token server)."
+  echo "[Launcher] ERROR: OPENAI_API_KEY is not set."
   exit 1
 fi
 
@@ -183,16 +177,6 @@ sleep 0.8
 
 echo "[Launcher] Orchestrator signaling at ${SIGNAL_URL}"
 
-# ── Start OpenAI token server (for ephemeral Realtime tokens) ───────────────────────────────
-echo "🔑 Starting OpenAI token server on port ${TOKEN_SERVER_PORT}…"
-# Inherit env so server can read OPENAI_API_KEY
-node "$TOKEN_SERVER_JS" &
-TOKEN_PID=$!
-echo "[Launcher] Token server PID: $TOKEN_PID"
-
-# give it a moment to bind
-sleep 0.5
-
 COMPOSED_PROMPT_A="$PROMPT_A"
 if [[ -n "$TASK_PROMPT_A" ]]; then
   printf -v COMPOSED_PROMPT_A "%s\n\n%s" "$PROMPT_A" "$TASK_PROMPT_A"
@@ -205,7 +189,6 @@ echo "🧊 Launching GPT-4o adapter (Role A) with examiner mode: ${EXAMINER_MODE
 node "$ADAPTER_A_JS" \
   --role A \
   --signalUrl "$SIGNAL_URL" \
-  --tokenServer "$TOKEN_SERVER_URL" \
   --voice "$VOICE_A" \
   --vadMode "$EXAMINER_MODE" \
   --systemPrompt "$COMPOSED_PROMPT_A" &
@@ -214,11 +197,10 @@ echo "[Launcher] Adapter A PID: $PID_A"
 
 # ── Launch GPT-4o adapter (Role B) ─────────────────────────────────────────────────────────
 echo "🧊 Launching adapter (Role B)…"
-if [[ "$ADAPTER_B_JS" == "adapters/gptRealtime_adapter.js" ]]; then
+if [[ "$ADAPTER_B_JS" == "adapters/gptRealtime_adapter.js" || "$ADAPTER_B_JS" == "adapters/eesi_adapter.js" ]]; then
   node "$ADAPTER_B_JS" \
     --role B \
     --signalUrl "$SIGNAL_URL" \
-    --tokenServer "$TOKEN_SERVER_URL" \
     --voice "$VOICE_B" \
     --vadMode "$EXAMINER_MODE" \
     --systemPrompt "$PROMPT_B" &
@@ -227,7 +209,7 @@ else
     --role B \
     --signalUrl "$SIGNAL_URL" \
     --moshiUrl "ws://localhost:8998/api/chat" \
-    --tokenServer "$TOKEN_SERVER_URL" &
+    --tokenServer "http://localhost:3002" &
 fi
 PID_B=$!
 echo "[Launcher] Adapter B PID: $PID_B"
@@ -237,8 +219,8 @@ cleanup() {
   echo -e "\n[Launcher] Shutting down processes…"
   # Ask orchestrator to mix down (SIGINT)
   kill -SIGINT "$ORCH_PID" 2>/dev/null || true
-  # Terminate adapters and token server
-  kill "$PID_A" "$PID_B" "$TOKEN_PID" 2>/dev/null || true
+  # Terminate adapters
+  kill "$PID_A" "$PID_B" 2>/dev/null || true
   # Wait for orchestrator to finish mixdown
   wait "$ORCH_PID" 2>/dev/null || true
   echo "[Launcher] Bye."

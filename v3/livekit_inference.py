@@ -207,9 +207,12 @@ async def run(input_wav: str, output_wav: str, room_name: str):
             nonlocal receiving_task
             receiving_task = asyncio.create_task(_receive_agent_audio(track))
 
+    agent_joined = asyncio.Event()
+
     @room.on("participant_connected")
     def on_participant_connected(participant: rtc.RemoteParticipant):
         log.info("Participant joined: %s (%s)", participant.identity, participant.name)
+        agent_joined.set()
 
     @room.on("disconnected")
     def on_disconnected():
@@ -222,6 +225,13 @@ async def run(input_wav: str, output_wav: str, room_name: str):
         options=rtc.RoomOptions(auto_subscribe=True),
     )
     log.info("Connected to room '%s'. Waiting for agent to join …", room.name)
+    if room.remote_participants:
+        agent_joined.set()
+    try:
+        await asyncio.wait_for(agent_joined.wait(), timeout=20)
+    except asyncio.TimeoutError as exc:
+        await room.disconnect()
+        raise RuntimeError("No LiveKit agent joined within 20 seconds") from exc
 
     # ── Publish audio from WAV ────────────────────────────────────────
     source = rtc.AudioSource(src_rate, src_channels)

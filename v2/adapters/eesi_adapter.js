@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * gpt4oRealtime_adapter.js (Role A/B)
+ * eesi_adapter.js (Role B)
  * Bridges your orchestrator (WebRTC @ 48 kHz PCM16, 50 ms cadence) <->
- * OpenAI Realtime (WebRTC) using the server-side unified calls endpoint.
+ * EESI Nur Live (WebRTC) using the configured EESI API key.
  *
  * Key behaviors
  *  - Reuses your orchestrator's WS signaling contract (/signal) and 48 kHz timing.
@@ -20,7 +20,9 @@ const { RTCAudioSource, RTCAudioSink } = wrtc.nonstandard;
 const { resampleToWire } = require('./pcm_wire');
 
 // Configuration from environment variables with defaults
-const DEFAULT_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1';
+const DEFAULT_MODEL = process.env.EESI_MODEL || 'nur-live-v1';
+const EESI_BASE_URL = (process.env.EESI_BASE_URL || 'https://api.dev.eesi.ai/v1').replace(/\/$/, '');
+const EESI_API_KEY = process.env.EESI_API_KEY;
 const DEFAULT_TOKEN_SERVER = process.env.OPENAI_TOKEN_SERVER || 'http://localhost:3002';
 const DEFAULT_TOKEN_SERVER_PORT = parseInt(process.env.TOKEN_SERVER_PORT, 10) || 3002;
 const WIRE_SR = parseInt(process.env.WIRE_SAMPLE_RATE, 10) || 48000;  // Orchestrator wire sample rate
@@ -132,10 +134,15 @@ async function connectOrchestrator() {
 
 // ------------- OpenAI leg (WebRTC) -------------
 async function connectOpenAI() {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required');
+  if (!EESI_API_KEY) throw new Error('EESI_API_KEY is required');
+  const iceResponse = await _fetch(`${EESI_BASE_URL}/realtime/ice-servers`, {
+    headers: { Authorization: `Bearer ${EESI_API_KEY}` },
+  });
+  if (!iceResponse.ok) throw new Error(`ICE credentials failed (${iceResponse.status})`);
+  const { ice_servers: iceServers = [] } = await iceResponse.json();
 
   // 2) Build PC toward OpenAI
-  aiPC = new wrtc.RTCPeerConnection();
+  aiPC = new wrtc.RTCPeerConnection({ iceServers });
   aiSource = new RTCAudioSource({ sampleRate: WIRE_SR, channelCount: 1 });
   const aiOutTrack = aiSource.createTrack();
   aiPC.addTrack(aiOutTrack);
@@ -158,38 +165,10 @@ async function connectOpenAI() {
   aiDC = aiPC.createDataChannel('oai-events');
   aiDC.onopen = () => {
     console.log(`[Adapter-${ROLE}] OpenAI data channel open. VAD mode: ${VAD_MODE}`);
-    // Build turn_detection config based on VAD_MODE
-    let turn_detection_config;
-    if (TURN_MODE === 'none') {
-      turn_detection_config = undefined;
-    } else if (VAD_MODE === 'fast') {
-      // Fast mode: stricter threshold, shorter silence duration for quicker response
-      turn_detection_config = {
-        type: 'server_vad',
-        create_response: true,
-        interrupt_response: false,
-        threshold: 0.6,
-        prefix_padding_ms: 1200,
-        silence_duration_ms: 600
-      };
-    } else {
-      // Slow mode (default): more patient, allows interruption
-      turn_detection_config = {
-        type: 'server_vad',
-        create_response: true,
-        interrupt_response: true
-      };
-    }
-
-    // Send initial session.update
+    // Keep the gateway's model-owned floor policy and default turn detection.
     const msg = {
       type: 'session.update',
-      session: {
-        type: 'realtime',
-        model: MODEL,
-        instructions: SYSTEM_PROMPT,
-        audio: { output: { voice: VOICE }, input: { turn_detection: turn_detection_config ?? null } },
-      }
+      session: { instructions: SYSTEM_PROMPT, voice: VOICE },
     };
     safeSendDC(msg);
   };
@@ -199,18 +178,10 @@ async function connectOpenAI() {
     try {
       if (argv.logEvents) console.log(`[Adapter-${ROLE}] ← event`, ev.data);
       const evt = JSON.parse(ev.data);
-      if (evt?.type === 'error') console.error(`[Adapter-${ROLE}] Realtime error:`, JSON.stringify(evt.error));
       if (evt?.type === 'session.updated' && !prefillSent) {
         sendPrefillHistory();
       }
 
-      // Prevent Examinee from speaking before Examiner
-      if (ROLE === 'B' && evt?.type === 'response.created') {
-        if (Date.now() - connectionStartTime < 4000) {
-          console.log(`[Adapter-B] Canceling early response to wait for Examiner`);
-          safeSendDC({ type: 'response.cancel' });
-        }
-      }
     } catch { }
   };
   aiDC.onerror = (e) => console.error(`[Adapter-${ROLE}] datachannel error`, e);
@@ -221,7 +192,7 @@ async function connectOpenAI() {
   await aiPC.setLocalDescription(offer);
   await waitForIceGatheringComplete(aiPC);
 
-  const sdpAnswer = await postSDP('https://api.openai.com/v1/realtime/calls', process.env.OPENAI_API_KEY, aiPC.localDescription.sdp);
+  const sdpAnswer = await postSDP(`${EESI_BASE_URL}/realtime/calls?model=${encodeURIComponent(MODEL)}&source=live`, EESI_API_KEY, aiPC.localDescription.sdp);
   await aiPC.setRemoteDescription({ type: 'answer', sdp: sdpAnswer });
   console.log(`[Adapter-${ROLE}] OpenAI answer applied.`);
 }
@@ -241,7 +212,7 @@ function startBridgePacers() {
   // Orchestrator -> OpenAI: emit ten 10ms frames per 100ms tick
   const FRAME_10MS = Math.floor(WIRE_SR * 0.01) * 2; // bytes at WIRE_SR PCM16 mono
   uplinkPacer = setInterval(() => {
-    // For Role B (examinee), ignore the first 4 seconds of audio from orchestrator 
+    // For Role B (examinee), ignore the first 4 seconds of audio from orchestrator
     // to prevent fake silence/noise from triggering VAD before the examiner speaks.
     const shouldMute = (ROLE === 'B' && (Date.now() - bridgeStartTime < 4000));
 
@@ -295,12 +266,14 @@ function startBridgePacers() {
 }
 
 // ------------- Utils -------------
+async function postJSON(url, body) {
+  const r = await _fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`POST ${url} ${r.status}`);
+  return await r.json();
+}
+
 async function postSDP(url, bearer, sdp) {
-  const body = new FormData();
-  body.set('sdp', sdp);
-  body.set('session', JSON.stringify({ type: 'realtime', model: MODEL, instructions: SYSTEM_PROMPT,
-    audio: { output: { voice: VOICE } } }));
-  const r = await _fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${bearer}` }, body });
+  const r = await _fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/sdp', 'Authorization': `Bearer ${bearer}` }, body: sdp });
   if (!r.ok) {
     const t = await r.text().catch(() => '');
     throw new Error(`SDP POST failed ${r.status}: ${t}`);
@@ -363,7 +336,7 @@ function sendPrefillHistory() {
   if (!turns.length) {
     prefillSent = true;
     if (AUTOSTART) {
-      safeSendDC({ type: 'response.create' });
+      safeSendDC({ type: 'response.create', response: { modalities: ['audio', 'text'] } });
     }
     return;
   }
@@ -382,6 +355,6 @@ function sendPrefillHistory() {
   }
   prefillSent = true;
   if (AUTOSTART) {
-    safeSendDC({ type: 'response.create' });
+    safeSendDC({ type: 'response.create', response: { modalities: ['audio', 'text'] } });
   }
 }

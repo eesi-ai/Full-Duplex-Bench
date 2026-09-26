@@ -21,7 +21,7 @@ ASR_OUTPUT=""
 EVAL_OUTPUT=""
 MAX_TIME="${MAX_ASR_TIME:-120}"
 API_KEY="${GEMINI_API_KEY:-}"
-MODEL="${GEMINI_MODEL:-gemini-2.5-flash-preview-09-2025}"
+MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
 SLEEP_S="0"
 EVAL_PY="$PROJECT_ROOT/eval/eval_single_item.py"
 EVAL_PROMPTS="$PROJECT_ROOT/eval/eval_prompts.json"
@@ -80,7 +80,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --asr-output <path>    ASR output directory (default: ./experiments_<name>_asr)"
       echo "  --eval-output <path>   Evaluation output directory (default: ./eval_results)"
       echo "  --max-time <seconds>   Max audio processing time (default: 120)"
-      echo "  --model <name>         Evaluation model (default: gemini-2.5-flash-preview-09-2025)"
+      echo "  --model <name>         Evaluation model (default: gemini-2.5-flash)"
       echo "  --sleep <seconds>      Sleep between API calls (default: 0)"
       echo "  --eval-py <path>       Evaluation script path"
       echo "  --eval-prompts <path>  Evaluation prompts JSON"
@@ -114,7 +114,9 @@ if [[ ! -d "$EXPERIMENT_ROOT" ]]; then
 fi
 
 # Check for API key in environment if not provided
-if [[ -z "$API_KEY" ]]; then
+if [[ -z "$API_KEY" && "${GEMINI_PROVIDER:-api_key}" == "vertex" ]]; then
+  API_KEY="vertex-adc"
+elif [[ -z "$API_KEY" ]]; then
   if [[ -n "${GEMINI_API_KEY:-}" ]]; then
     API_KEY="$GEMINI_API_KEY"
     echo "Using API key from GEMINI_API_KEY environment variable"
@@ -196,4 +198,3 @@ echo "========================================="
 echo "ASR results:      $ASR_OUTPUT"
 echo "Eval results:     $EVAL_OUTPUT"
 echo "========================================="
-
