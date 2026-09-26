@@ -117,6 +117,38 @@ unscored rather than counted as wrong answers. Spoken reply quality improved,
 but some replies were garbled or contradictory after a successful tool call.
 The slower perceived latency matters for a voice product.
 
+## τ²-bench: ten airline voice tasks
+
+The separate τ²-bench submodule ran the same task IDs 0–9, seed 300, with
+`eesi/nur-live-v1` as the audio-native agent, a GPT-4.1 voice user simulator,
+EESI user TTS, control speech complexity, and 200 ms simulation ticks.
+The simulator's hallucination reviewer used GPT-4.1. Three tasks ran in
+parallel. The runner commit was `1795734c507ca7205e03987f8a91dcbd2cbaae3a`.
+Raw local records are under
+`evals/tau2-bench/data/simulations/nur-live-dev-airline-10-control-loop-20260926/`.
+The benchmark's task reward is separate from Full-Duplex-Bench scores.
+
+| Metric | Before | Control loop |
+| --- | ---: | ---: |
+| Task success | 3/10 | 5/10 |
+| Mean simulation duration | 186.35 s | 190.20 s |
+| User or agent normal stop | 8/10 | 10/10 |
+
+The successful task IDs were 0, 2, 4, 6, and 9. Task 2 used two user
+hallucination retries; task 5 used one and ultimately failed. Several failed
+tasks completed valid read calls but missed the requested database state or
+communication outcome. Task 8, for example, passed three read checks and
+failed the booking write check. This is evidence of incomplete end-to-end
+tool workflows, not a failure to select every tool.
+
+An unrelated main deployment (`#345`) restarted the shared dev pod near the
+end of the capture. Tasks 7–9 initially received WebSocket 503 or upstream
+model 502 errors. After the same speech image digest returned to Ready,
+`tau2 run --auto-resume` retained tasks 0–6 and reran exactly those three
+infrastructure failures. The final ten records have no infrastructure-error
+terminations. The main deployment did not change the speech image, but its
+pod restart added wall-clock time to this run.
+
 ## Interpretation and next replay
 
 The fixed control loop corrected one concrete repeated-answer failure and
