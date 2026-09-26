@@ -24,15 +24,19 @@ class VertexJudge:
             f"/locations/{location}/publishers/google/models/{self.model}:generateContent"
         )
         prompt = "\n\n".join(f"{m['role']}: {m['content']}" for m in messages)
+        generation_config = {
+            "temperature": _kwargs.get("temperature", 0.2),
+            "maxOutputTokens": max(1024, _kwargs.get("max_tokens", 8192)),
+            "responseMimeType": "application/json",
+        }
+        if self.model.startswith("gemini-2.5-flash"):
+            generation_config["thinkingConfig"] = {"thinkingBudget": 0}
         response = requests.post(
             url,
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": _kwargs.get("temperature", 0.2),
-                    "maxOutputTokens": max(1024, _kwargs.get("max_tokens", 8192)),
-                },
+                "generationConfig": generation_config,
             },
             timeout=120,
         )

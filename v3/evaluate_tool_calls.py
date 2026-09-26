@@ -117,7 +117,7 @@ Respond with ONLY a JSON object:
         return exact_match_args(expected_args, actual_args)
 
 
-def llm_judge_response(expected_intent: str, actual_transcript: str) -> Tuple[float, str]:
+def llm_judge_response(expected_intent: str, actual_transcript: str) -> Tuple[Optional[float], str]:
     """
     Use gpt-4o to judge if the agent's spoken response matches the expected intent.
     Returns (score: float 0.0 or 1.0, explanation: str).
@@ -157,7 +157,8 @@ Respond with ONLY a JSON object:
         is_correct = result.get("correct", False)
         return (1.0 if is_correct else 0.0), result.get("explanation", "")
     except Exception as e:
-        return 0.0, f"LLM parsing error: {str(e)}"
+        # A malformed judge response is missing evidence, not a model error.
+        return None, f"LLM parsing error: {str(e)}"
 
 
 def exact_match_args(expected: dict, actual: dict) -> Tuple[bool, str]:
