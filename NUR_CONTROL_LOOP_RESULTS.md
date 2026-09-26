@@ -37,8 +37,8 @@ voice bound cut Nur's ongoing reply after about 742 ms of detected speech.
 Gemma produced no BACKCHANNEL action in this particular probe. This exposed
 an important remaining floor issue despite the aggregate labels below. A
 follow-up change increases the emergency voice bound to 1.25 seconds and
-asks Gemma to preserve the floor on brief caller acknowledgments. It needs
-its own deployed audio replay before its effect can be claimed.
+asks Gemma to preserve the floor on brief caller acknowledgments. Its
+deployed audio replay is reported in the final-revision section below.
 
 ## v1.0: ten cases
 
@@ -223,6 +223,46 @@ judged poor quality, including a garbled currency answer. The scorer's
 7.43-second mean uses ten healthy spoken cases; the runner's preliminary
 5.54-second mean included two rollout-time silent captures and is invalid.
 
+## Final revision: τ² airline voice tasks
+
+The final revision was also run against airline task IDs 0–9 with the same
+audio-native Nur agent, EESI user TTS, control speech complexity, 200 ms
+simulation ticks, and three parallel lanes. This run used
+`vertex_gcloud/gemini-2.5-flash` for both the voice user and hallucination
+reviewer. The earlier ten-task result used GPT-4.1 for those roles. An attempt
+to keep GPT-4.1 for the final revision hit the OpenAI organization's enforced
+spend cap, so a directly comparable final GPT score is unavailable. The
+Vertex result measures final-revision behavior with a different simulator;
+its score should not be read as a causal before/after change from 5/10.
+
+| Final Vertex-user metric | Result |
+| --- | ---: |
+| Airline task success | 4/10 |
+| Mean simulation duration | 319.63 s |
+| Normal user or agent stop | 10/10 |
+| Unresponsive period | 0/10 |
+| Matching read actions | 18/21 |
+| Matching write actions | 0/4 |
+
+The successful task IDs were 0, 3, 4, and 6. Task 5 was resumed alone after
+a cached Vertex bearer token expired during its earlier attempt; the runner
+retained the other nine valid records. The adapter now refreshes and retries
+once on a 401. The final ten accepted records all have normal stops and no
+infrastructure-error termination. The 319.63-second mean is substantially
+longer than the 190.20-second GPT-user run, but the different user model and
+reviewer prevent attributing that difference to Nur's runtime.
+
+The same deployed speech image was used for this run. Raw records and duplex
+audio are under
+`evals/tau2-bench/data/simulations/nur-live-dev-airline-10-final-vertex-20260926/`
+in the local worktree. Task 8 missed the requested booking write after three
+matching read actions. Task 7 entered a long loop asking the caller to spell
+their user and reservation IDs, cycled through inconsistent ID hypotheses,
+and made no matching tool calls. In task 5 Nur called a Regular member Gold,
+offered a travel certificate despite the scenario requiring none, and claimed
+to have issued it. These are grounded in the saved audio labels, task
+criteria, and action checks.
+
 ## Interpretation
 
 The first control-loop deployment corrected one concrete repeated-answer
@@ -236,5 +276,7 @@ and improved v3 tool grounding. It regressed on the sampled v2 task rubric
 and ICC backchannel frequency while making v3 replies slower. The next
 tuning cycle should focus on short acknowledgments while the caller has the
 floor, speaker focus under background speech, language drift, and avoiding
-repeated questions. Use paired audio and Activity traces for those changes;
-aggregate scores alone do not identify their cause.
+repeated questions. The τ² traces additionally call for grounding completion
+claims in successful writes and recovering from uncertain alphanumeric IDs.
+Use paired audio and Activity traces for those changes; aggregate scores
+alone do not identify their cause.
